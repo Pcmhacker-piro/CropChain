@@ -1,6 +1,9 @@
 const Batch = require('../models/Batch');
 const socketService = require('./socketService');
 
+// Map uint8 enum values to human-readable stage strings
+const STAGE_MAP = ['farmer', 'mandi', 'transport', 'retailer'];
+
 function startListener(contract) {
 
   // ✅ matches your ABI
@@ -8,17 +11,18 @@ function startListener(contract) {
     try {
 
       const id = batchId.toString();
+      const stageStr = STAGE_MAP[stage] || 'unknown';
 
       await Batch.updateOne(
         { batchId: id },
         {
-          currentStage: stage,
+          currentStage: stageStr,
           syncStatus: 'synced'
         },
         { upsert: true }
       );
 
-      console.log(`[SYNC] Batch ${id} → ${stage} by ${actor}`);
+      console.log(`[SYNC] Batch ${id} → ${stageStr} by ${actor}`);
 
       // Emit real-time update to all clients watching this batch
       const batchData = await Batch.findOne({ batchId: id }).lean();
@@ -26,7 +30,7 @@ function startListener(contract) {
       if (batchData) {
         socketService.emitToBatchRoom(id, 'batch-updated', {
           batchId: id,
-          stage,
+          stage: stageStr,
           actor,
           timestamp: new Date().toISOString(),
           batch: batchData
@@ -35,7 +39,7 @@ function startListener(contract) {
         // Also emit global event for dashboards
         socketService.emitGlobal('batch-stage-changed', {
           batchId: id,
-          stage,
+          stage: stageStr,
           actor,
           timestamp: new Date().toISOString()
         });
