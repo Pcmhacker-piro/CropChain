@@ -87,6 +87,13 @@ class OracleService {
      */
     async handleIoTRequest(batchId, requester) {
         try {
+            // Security guard: prevent mock data generation in production
+            // unless explicitly enabled via ORACLE_ENABLED=true
+            if (process.env.NODE_ENV === 'production' && process.env.ORACLE_ENABLED !== 'true') {
+                console.warn(`⚠️ Oracle service is disabled in production. Set ORACLE_ENABLED=true to enable.`);
+                return;
+            }
+
             const batchIdStr = ethers.decodeBytes32String(batchId);
             console.log(`📡 IoT Data Requested:`);
             console.log(`   Batch ID: ${batchIdStr}`);
@@ -135,6 +142,12 @@ class OracleService {
      * Generate realistic mock IoT data
      */
     generateMockIoTData() {
+        // CRITICAL: Never generate mock data in production.
+        // This would write fabricated sensor readings to the immutable blockchain,
+        // corrupting supply chain integrity.
+        if (process.env.NODE_ENV === 'production') {
+            throw new Error('CRITICAL: generateMockIoTData() must never be called in production. Use real IoT sensor integration instead.');
+        }
         // Generate temperature between 40°F and 90°F (400-900 in hundredths)
         // Using weighted distribution for more realistic values
         const tempRanges = [

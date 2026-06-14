@@ -739,7 +739,12 @@ if (process.env.NODE_ENV !== 'test') {
         }
 
         // Start Oracle service for IoT data verification if blockchain is active
-        if (blockchainService.isAvailable() && process.env.ORACLE_PRIVATE_KEY) {
+        // Security: Oracle service is disabled in production unless explicitly enabled
+        const canStartOracle = blockchainService.isAvailable() &&
+                               process.env.ORACLE_PRIVATE_KEY &&
+                               (process.env.NODE_ENV !== 'production' || process.env.ORACLE_ENABLED === 'true');
+
+        if (canStartOracle) {
             try {
                 await oracleService.initialize();
                 console.log('🔮 Oracle service started successfully');
@@ -748,7 +753,11 @@ if (process.env.NODE_ENV !== 'test') {
                 console.log('⚠️  Continuing without Oracle service...');
             }
         } else {
-            console.log('ℹ️  Oracle service disabled (blockchain running in demo mode or ORACLE_PRIVATE_KEY missing)');
+            if (process.env.NODE_ENV === 'production' && !process.env.ORACLE_ENABLED) {
+                console.log('ℹ️  Oracle service disabled in production. Set ORACLE_ENABLED=true to enable (not recommended - use real IoT sensors).');
+            } else {
+                console.log('ℹ️  Oracle service disabled (blockchain running in demo mode or ORACLE_PRIVATE_KEY missing)');
+            }
         }
     });
 }
